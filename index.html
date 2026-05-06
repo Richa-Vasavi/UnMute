@@ -569,25 +569,12 @@ function sb(id){const el=document.getElementById(id);setTimeout(()=>el.scrollTop
 
 async function api(system, messages, max = 1000) {
   const r = await fetch('/api/chat', {
-    method: 'POST',
+    method: 'POST',                              // ← this was missing
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      // UPDATE THIS LINE:
-      model: 'claude-sonnet-4-6', 
-      max_tokens: max,
-      system,
-      messages
-    })
+    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: max, system, messages })
   });
-
-  if (!r.ok) {
-    const e = await r.json().catch(() => ({}));
-    // This is where you see "API error 404"
-    throw new Error(e.error?.message || 'API error ' + r.status);
-  }
-  
-  const data = await r.json();
-  return data.content?.[0]?.text || '';
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error?.message || 'API error ' + r.status); }
+  return (await r.json()).content?.[0]?.text || '';
 }
 
 function addMsg(cid,text,role,style){
