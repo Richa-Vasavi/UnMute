@@ -567,14 +567,31 @@ function autosize(el){el.style.height='auto';el.style.height=Math.min(el.scrollH
 function nl2br(s){return s.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');}
 function sb(id){const el=document.getElementById(id);setTimeout(()=>el.scrollTop=el.scrollHeight,50);}
 
-async function api(system, messages, max = 1000) {
-  const r = await fetch('/api/chat', {
-    method: 'POST',                              // ← this was missing
+// async function api(system, messages, max = 1000) {
+//   const r = await fetch('/api/chat', {
+//     method: 'POST',                              // ← this was missing
+//     headers: { 'Content-Type': 'application/json' },
+//     body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: max, system, messages })
+//   });
+//   if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error?.message || 'API error ' + r.status); }
+//   return (await r.json()).content?.[0]?.text || '';
+// }
+
+  async function api(system, messages, max = 1000) {
+  const r = await fetch('/api/gemini', {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: max, system, messages })
+    body: JSON.stringify({ system, messages, max_tokens: max })
   });
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error?.message || 'API error ' + r.status); }
-  return (await r.json()).content?.[0]?.text || '';
+  
+  if (!r.ok) { 
+    const e = await r.json().catch(() => ({})); 
+    throw new Error(e.error || 'API error ' + r.status); 
+  }
+  
+  const res = await r.json();
+  // Gemini's response structure is different from Anthropic's
+  return res.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
 function addMsg(cid,text,role,style){
