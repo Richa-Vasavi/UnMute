@@ -1,2 +1,2 @@
 # UnMute
-A webpage to overcome emotional abuse
+A website to overcome emotional abuse
