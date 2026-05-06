@@ -1,22 +1,29 @@
-// 1. The new Retry Logic function sits at the top
-async function fetchWithRetry(url, options, retries = 3, delayMs = 2000) {
+// Define the models in order of preference
+const MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',       // fallback 1
+  'gemini-2.5-flash-lite',  // fallback 2 - least busy
+];
+
+// Helper function: Tries to fetch data using a specific model with simple retries
+async function fetchWithRetry(url, options, retries = 2, delayMs = 1500) {
   for (let i = 0; i < retries; i++) {
     const response = await fetch(url, options);
     const data = await response.json();
 
-    // If Google says 503 or "high demand", wait and try again
-    if (response.status === 503 || data.error?.message?.includes('high demand')) {
+    // If it's a 503 (Service Unavailable) or a "high demand" error, wait and retry
+    if (response.status === 503 || data.error?.message?.includes('high demand') || data.error?.message?.includes('overloaded')) {
       if (i < retries - 1) {
-        await new Promise(r => setTimeout(r, delayMs * (i + 1))); // Waits 2s, then 4s, etc.
-        continue; // Loops back to try again
+        // Wait before retrying (exponential backoff: 1.5s, then 3s)
+        await new Promise(resolve => setTimeout(resolve, delayMs * (i + 1)));
+        continue;
       }
     }
-    // If it succeeds (or fails for a different reason), return the data
+    // Return the response (whether successful or a hard failure)
     return { response, data };
   }
 }
 
-// 2. Your standard Vercel Handler
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -28,6 +35,7 @@ module.exports = async function handler(req, res) {
 
   const { system, messages, max_tokens } = req.body;
 
+  // Format messages for Gemini ('user' or 'model')
   const formattedMessages = messages.map(m => ({
     role: (m.role === 'assistant' || m.role === 'model') ? 'model' : 'user',
     parts: [{ text: m.content || '' }]
@@ -39,22 +47,49 @@ module.exports = async function handler(req, res) {
     generationConfig: { maxOutputTokens: max_tokens || 1000, temperature: 0.7 }
   };
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  let lastErrorData = null;
+  let lastStatus = 500;
 
-    // 3. We use the new fetchWithRetry function here instead of standard fetch
-    const { response, data } = await fetchWithRetry(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+  // Loop through the models in order of preference
+  for (const modelName of MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
-    if (!response.ok) {
-      return res.status(response.status).json({ error: data.error?.message || 'Gemini API Error' });
+    try {
+      // Try to fetch using the current model (includes internal retries)
+      const { response, data } = await fetchWithRetry(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      // If successful, return the data immediately and stop checking other models
+      if (response.ok) {
+        return res.status(200).json(data);
+      }
+
+      // If the model is not found (404), overloaded (503), or hits a quota issue (429),
+      // we save the error but allow the loop to continue to the NEXT model.
+      lastErrorData = data;
+      lastStatus = response.status;
+      
+      // We ONLY fall back to the next model for capacity/server issues.
+      // If the error is a bad request (400) like invalid JSON, we shouldn't retry it on another model.
+      if (response.status === 400) {
+           return res.status(400).json({ error: data.error?.message || 'Bad Request Format' });
+      }
+
+      console.log(`Model ${modelName} failed with status ${response.status}. Trying next model...`);
+
+    } catch (error) {
+      // Catch network-level errors (like fetch failing entirely)
+      lastErrorData = { error: { message: error.message } };
+      lastStatus = 500;
+      console.error(`Network error with ${modelName}:`, error);
     }
-
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
+
+  // If we exhaust the entire array of MODELS and none succeed, return the last error encountered.
+  return res.status(lastStatus).json({ 
+      error: lastErrorData?.error?.message || 'All models failed to respond.' 
+  });
 };
