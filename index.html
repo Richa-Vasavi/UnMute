@@ -569,10 +569,11 @@ function sb(id){const el=document.getElementById(id);setTimeout(()=>el.scrollTop
 
 async function api(system, messages, max = 1000) {
   const r = await fetch('/api/chat', {
-    method: 'POST', // <--- ADD THIS LINE
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20240620', // Use a valid model ID
+      // UPDATE THIS LINE:
+      model: 'claude-sonnet-4-6', 
       max_tokens: max,
       system,
       messages
@@ -581,6 +582,7 @@ async function api(system, messages, max = 1000) {
 
   if (!r.ok) {
     const e = await r.json().catch(() => ({}));
+    // This is where you see "API error 404"
     throw new Error(e.error?.message || 'API error ' + r.status);
   }
   
