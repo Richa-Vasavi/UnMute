@@ -578,7 +578,7 @@ function sb(id){const el=document.getElementById(id);setTimeout(()=>el.scrollTop
 // }
 
   async function api(system, messages, max = 1000) {
-  const r = await fetch('/api/gemini.mjs', {
+  const r = await fetch('/api/gemini', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ system, messages, max_tokens: max })
