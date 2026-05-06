@@ -594,42 +594,42 @@ function sb(id){const el=document.getElementById(id);setTimeout(()=>el.scrollTop
 //   return res.candidates?.[0]?.content?.parts?.[0]?.text || '';
 // }
 
-//   async function api(system, messages, max = 1000) {
-//   const r = await fetch('/api/gemini', {
-//     method: 'POST',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify({ system, messages, max_tokens: max })
-//   });
-  
-//   const data = await r.json();
-
-//   if (!r.ok) { 
-//     throw new Error(data.error || 'API error ' + r.status); 
-//   }
-  
-//   try {
-//     // Safely extract Gemini's text response
-//     return data.candidates[0].content.parts[0].text || '';
-//   } catch (err) {
-//     throw new Error("Received an invalid response format from the AI.");
-//   }
-// }
-
-async function api(system, messages, max = 1000) {
+  async function api(system, messages, max = 1000) {
   const r = await fetch('/api/gemini', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ system, messages })
+    body: JSON.stringify({ system, messages, max_tokens: max })
   });
   
   const data = await r.json();
-  
+
   if (!r.ok) { 
     throw new Error(data.error || 'API error ' + r.status); 
   }
   
-  return data.reply;
+  try {
+    // Safely extract Gemini's text response
+    return data.candidates[0].content.parts[0].text || '';
+  } catch (err) {
+    throw new Error("Received an invalid response format from the AI.");
+  }
 }
+
+// async function api(system, messages, max = 1000) {
+//   const r = await fetch('/api/gemini', {
+//     method: 'POST',
+//     headers: { 'Content-Type': 'application/json' },
+//     body: JSON.stringify({ system, messages })
+//   });
+  
+//   const data = await r.json();
+  
+//   if (!r.ok) { 
+//     throw new Error(data.error || 'API error ' + r.status); 
+//   }
+  
+//   return data.reply;
+// }
 
 function addMsg(cid,text,role,style){
   const c=document.getElementById(cid);
