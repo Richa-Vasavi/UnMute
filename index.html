@@ -567,13 +567,25 @@ function autosize(el){el.style.height='auto';el.style.height=Math.min(el.scrollH
 function nl2br(s){return s.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');}
 function sb(id){const el=document.getElementById(id);setTimeout(()=>el.scrollTop=el.scrollHeight,50);}
 
-async function api(system,messages,max=1000){
-  const r=await fetch('/api/chat', {
-  headers: { 'Content-Type': 'application/json' },
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:max,system,messages})
+async function api(system, messages, max = 1000) {
+  const r = await fetch('/api/chat', {
+    method: 'POST', // <--- ADD THIS LINE
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-3-5-sonnet-20240620', // Use a valid model ID
+      max_tokens: max,
+      system,
+      messages
+    })
   });
-  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||'API error '+r.status);}
-  return (await r.json()).content?.[0]?.text||'';
+
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    throw new Error(e.error?.message || 'API error ' + r.status);
+  }
+  
+  const data = await r.json();
+  return data.content?.[0]?.text || '';
 }
 
 function addMsg(cid,text,role,style){
