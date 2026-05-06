@@ -1,8 +1,8 @@
 // The ACTUAL, currently available Google Gemini models
 const MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',       // fallback 1
-  'gemini-2.5-flash-lite',          // High-tier final fallback
+  'gemini-1.5-flash',       // Fast, standard, free tier
+  'gemini-1.5-flash-8b',    // Lightweight fallback
+  'gemini-1.5-pro'          // High-tier final fallback
 ];
 
 // Robust retry logic for high demand / network hiccups
